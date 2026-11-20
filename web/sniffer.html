@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>网页嗅探 · YT Downloader</title>
+  <link rel="icon" href="/app-icon.png">
+  <link rel="stylesheet" href="/sniffer.css">
+  <script src="/sniffer.js" defer></script>
+</head>
+<body>
+  <svg class="symbols" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <defs>
+      <symbol id="i-scan" viewBox="0 0 24 24"><path d="M8 4H5a1 1 0 0 0-1 1v3m12-4h3a1 1 0 0 1 1 1v3M4 16v3a1 1 0 0 0 1 1h3m12-4v3a1 1 0 0 1-1 1h-3M3 12h18"/></symbol>
+      <symbol id="i-back" viewBox="0 0 24 24"><path d="m14.5 6-6 6 6 6"/></symbol>
+      <symbol id="i-forward" viewBox="0 0 24 24"><path d="m9.5 6 6 6-6 6"/></symbol>
+      <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 5v5h-5m4.4-.6A8 8 0 1 0 20 15"/></symbol>
+      <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18"/></symbol>
+      <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14m-6-6 6 6-6 6"/></symbol>
+      <symbol id="i-pause" viewBox="0 0 24 24"><path d="M8 5v14m8-14v14" stroke-width="3"/></symbol>
+      <symbol id="i-play" viewBox="0 0 24 24"><path d="m8 4 12 8-12 8z"/></symbol>
+      <symbol id="i-preview" viewBox="0 0 24 24"><rect x="2.5" y="4" width="19" height="15" rx="1.5"/><path d="M2.5 8h19M6 6h2"/></symbol>
+      <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></symbol>
+      <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    </defs>
+  </svg>
+
+  <header class="toolbar">
+    <div class="workspace-heading">
+      <h1><svg class="icon" aria-hidden="true"><use href="#i-scan"/></svg>网页嗅探</h1>
+      <span id="capture-status" class="capture-status" role="status">等待网页</span>
+    </div>
+    <div class="browser-toolbar">
+      <nav class="history" aria-label="网页导航">
+        <button type="button" id="back" class="icon-button" aria-label="后退" title="后退" disabled><svg class="icon" aria-hidden="true"><use href="#i-back"/></svg></button>
+        <button type="button" id="forward" class="icon-button" aria-label="前进" title="前进" disabled><svg class="icon" aria-hidden="true"><use href="#i-forward"/></svg></button>
+        <button type="button" id="reload" class="icon-button" aria-label="重新加载" title="重新加载" disabled><svg class="icon" aria-hidden="true"><use href="#i-refresh"/></svg></button>
+      </nav>
+      <form id="open-site" class="address">
+        <svg class="icon" aria-hidden="true"><use href="#i-globe"/></svg>
+        <input id="address" type="text" inputmode="url" aria-label="网页地址" placeholder="输入或粘贴网页地址" spellcheck="false" autocomplete="off" autocapitalize="off" required>
+        <button type="submit" aria-label="打开网页"><span id="open-label">打开</span><svg class="icon" aria-hidden="true"><use href="#i-arrow"/></svg></button>
+      </form>
+    </div>
+  </header>
+
+  <aside class="results" aria-label="识别结果">
+    <div class="results-head">
+      <div class="result-title"><h2>媒体资源</h2><span id="count" class="count">0</span></div>
+      <button id="capture" type="button" class="capture"><svg class="icon" aria-hidden="true"><use id="capture-icon" href="#i-pause"/></svg><span id="capture-label">暂停嗅探</span></button>
+    </div>
+    <p id="capture-limit" class="limit-notice" hidden>资源已达上限。清空后可继续收集。</p>
+    <div class="filters">
+      <label class="select-all"><input type="checkbox" id="toggle-all" aria-label="全选当前分类可下载的资源" disabled>全选</label>
+      <select id="filter" aria-label="筛选资源类型">
+        <option value="all">全部类型</option>
+        <option value="video">视频文件</option>
+        <option value="stream">流媒体清单</option>
+        <option value="audio">音频</option>
+      </select>
+      <button id="clear" class="quiet-button" type="button" disabled>清空</button>
+    </div>
+    <div class="scroll-region">
+      <ul id="candidates" class="candidates"></ul>
+      <div id="empty" class="empty">
+        <h3 id="empty-title">等待媒体资源</h3>
+        <p id="empty-message">打开网页并播放媒体后，可在此勾选要下载的资源。</p>
+      </div>
+    </div>
+    <footer class="queue">
+      <p id="message" role="status"></p>
+      <label class="output-picker" for="sniff-output">
+        输出格式
+        <select id="sniff-output">
+          <option value="">默认 · MP4</option>
+          <option value="mp4">MP4 视频</option>
+          <option value="mkv">MKV 视频</option>
+          <option value="m4a">M4A 音频</option>
+          <option value="mp3">MP3 音频</option>
+        </select>
+      </label>
+      <p class="help" id="queue-hint" hidden></p>
+      <button id="enqueue" class="primary" type="button" disabled><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg><span id="enqueue-label">加入下载队列</span></button>
+    </footer>
+  </aside>
+
+  <main class="preview" aria-label="网页预览">
+    <section id="welcome">
+      <div class="preview-mark" aria-hidden="true"><svg class="icon"><use href="#i-preview"/></svg></div>
+      <h2 id="preview-title">网页预览</h2>
+      <p id="preview-message">在地址栏输入网址并按 Enter，在此播放需要下载的媒体。</p>
+      <button id="retry-page" type="button" hidden><svg class="icon" aria-hidden="true"><use href="#i-refresh"/></svg>重新加载网页</button>
+    </section>
+  </main>
+</body>
+</html>

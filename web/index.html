@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>YT Downloader · 下载工作台</title>
+  <link rel="icon" type="image/png" href="/app-icon.png">
+  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/settings.css">
+  <link rel="stylesheet" href="/account.css">
+  <script src="/account.js" defer></script>
+  <script src="/preferences.js" defer></script>
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">跳到主要内容</a>
+  <header class="app-bar">
+    <div class="brand"><img src="/app-icon.png" alt="" width="32" height="32"><span>YT Downloader</span></div>
+    <nav class="workspace-nav" aria-label="主导航">
+      <div class="nav-group task-nav"><div class="nav-heading">下载队列</div>
+        <div class="filters" aria-label="筛选任务" role="group">
+          <button id="nav-queue" aria-current="page" type="button" class="nav-item filter active" data-filter="all" aria-pressed="true"><svg class="icon" aria-hidden="true"><use href="/icons.svg#list"></use></svg><span>全部任务</span><span class="nav-count" id="stat-total">0</span></button>
+          <button type="button" class="nav-item filter" data-filter="active" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="/icons.svg#activity"></use></svg><span>进行中</span><span class="nav-count" id="stat-active">0</span></button>
+          <button type="button" class="nav-item filter" data-filter="finished" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="/icons.svg#check"></use></svg><span>已完成</span><span class="nav-count" id="stat-done">0</span></button>
+          <button type="button" class="nav-item filter" data-filter="failed" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="/icons.svg#alert"></use></svg><span>失败</span><span class="nav-count" id="stat-failed">0</span></button>
+          <button hidden type="button" class="nav-item filter" data-filter="canceled" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="/icons.svg#cancel"></use></svg><span>已取消</span><span class="nav-count" id="stat-canceled">0</span></button>
+        </div>
+      </div>
+      <div class="nav-group tools-nav"><div class="nav-heading">工具</div>
+        <button id="nav-sniffer" type="button" class="nav-item" hidden><svg class="icon" aria-hidden="true"><use href="/icons.svg#radar"></use></svg><span>网页嗅探</span></button>
+        <button id="nav-account" type="button" class="nav-item" aria-haspopup="dialog"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.7"></circle><path d="M4.5 20a7.5 7.5 0 0 1 15 0"></path></svg><span id="nav-account-label">账户</span></button>
+        <button id="nav-settings" type="button" class="nav-item"><svg class="icon" aria-hidden="true"><use href="/icons.svg#settings"></use></svg><span>设置</span></button>
+      </div>
+    </nav>
+    <div class="app-status">
+      <span class="connection"><i id="connection-dot"></i><span id="connection-text" role="status">正在连接</span></span>
+      <button class="icon-button quit" id="quit" aria-label="退出应用" title="退出应用" type="button"><svg class="icon" aria-hidden="true"><use href="/icons.svg#power"></use></svg></button>
+    </div>
+  </header>
+  <main id="main" tabindex="-1">
+    <div id="connection-error" class="banner" role="status" hidden></div>
+    <div id="queue-panel">
+      <header class="page-header">
+        <div><h1>下载工作台</h1><p class="page-description" id="queue-summary">正在读取队列…</p></div>
+        <button id="pause-queue" class="secondary" type="button" aria-pressed="false" disabled><svg class="icon icon-pause" aria-hidden="true"><use href="/icons.svg#pause"></use></svg><svg class="icon icon-play" aria-hidden="true"><use href="/icons.svg#play"></use></svg><span id="pause-label">暂停队列</span></button>
+      </header>
+      <div id="queue-paused" class="queue-notice" role="status" hidden>队列已暂停。当前任务会继续下载，恢复后将启动等待中的任务。</div>
+      <p id="access-empty" class="help" hidden>当前角色没有下载队列权限。你可以在「账户」中查看自己的角色和权限。</p>
+      <section class="card composer" aria-labelledby="add-title">
+          <form id="add-form">
+            <div class="section-title">
+              <h2 id="add-title"><span class="section-symbol"><svg class="icon icon-link" aria-hidden="true"><use href="/icons.svg#link"></use></svg></span><label for="urls">添加下载</label></h2>
+              <button id="paste-links" type="button" class="quiet" hidden><svg class="icon icon-paste" aria-hidden="true"><use href="/icons.svg#paste"></use></svg>粘贴链接</button>
+            </div>
+            <div class="url-well">
+              <textarea id="urls" name="urls" aria-label="媒体链接" placeholder="粘贴或拖入视频、音频链接…" aria-describedby="composer-hint input-error" spellcheck="false" autocapitalize="off"></textarea>
+              <div class="input-foot"><span id="composer-hint">每行一个链接，可批量添加</span><span id="link-count" hidden></span></div>
+            </div>
+            <div id="input-error" class="error-text" role="alert" hidden></div>
+            <div class="destination"><svg class="icon" aria-hidden="true"><use href="/icons.svg#folder"></use></svg><span id="destination-label">保存到</span><button id="edit-destination" type="button" aria-label="更改保存位置"><bdi id="folder-path"></bdi><span class="directory-change">更改</span></button></div>
+            <div class="composer-bottom">
+              <label class="batch-picker" for="batch-format">输出格式
+                <span class="select-wrap"><select id="batch-format">
+                  <option value="">MP4（默认）</option><option value="mp4">MP4</option><option value="mkv">MKV</option><option value="m4a">M4A 音频</option><option value="mp3">MP3 音频</option>
+                </select><svg class="icon icon-chevron" aria-hidden="true"><use href="/icons.svg#chevron"></use></svg></span>
+              </label>
+              <label class="batch-picker" for="batch-quality">画质上限
+                <span class="select-wrap"><select id="batch-quality">
+                  <option value="">默认画质</option><option value="0">最佳画质</option><option value="2160">最高 2160p</option><option value="1440">最高 1440p</option><option value="1080">最高 1080p</option><option value="720">最高 720p</option><option value="480">最高 480p</option>
+                </select><svg class="icon icon-chevron" aria-hidden="true"><use href="/icons.svg#chevron"></use></svg></span>
+              </label>
+              <button id="add" type="submit" class="primary" disabled><svg class="icon icon-plus" aria-hidden="true"><use href="/icons.svg#plus"></use></svg><span id="add-label">加入队列</span><kbd id="submit-shortcut"></kbd></button>
+            </div>
+          </form>
+      </section>
+      <section class="card tasks" aria-labelledby="task-title">
+        <div class="list-toolbar">
+          <h2 id="task-title"><span id="view-name">全部任务</span><span class="count" id="total-count">0</span></h2>
+          <label class="search-box"><svg class="icon" aria-hidden="true"><use href="/icons.svg#search"></use></svg><input id="search-jobs" type="search" aria-label="搜索任务" placeholder="搜索标题或链接" spellcheck="false"></label>
+        </div>
+        <div class="list-columns" aria-hidden="true"><span>任务名称</span><span>输出</span><span>状态 / 进度</span><span>操作</span></div>
+        <div class="job-list" id="jobs"><div class="empty"><p class="empty-title">正在读取下载队列</p></div></div>
+      </section>
+    </div>
+    <div id="settings-panel" hidden>
+      <header class="page-header settings-header">
+        <h1>设置</h1>
+      </header>
+      <div class="preferences">
+        <div class="preference-tabs" role="tablist" aria-label="设置分类">
+          <button id="tab-download" type="button" role="tab" aria-controls="prefs-download" aria-selected="true"><svg class="icon" aria-hidden="true"><use href="/icons.svg#download"/></svg>下载</button>
+          <button id="tab-network" type="button" role="tab" aria-controls="prefs-network" aria-selected="false" tabindex="-1"><svg class="icon" aria-hidden="true"><use href="/icons.svg#globe"/></svg>网络</button>
+          <button id="tab-ai" type="button" role="tab" aria-controls="prefs-ai" aria-selected="false" tabindex="-1"><svg class="icon" aria-hidden="true"><use href="/icons.svg#activity"/></svg>AI 辅助</button>
+          <button id="tab-appearance" type="button" role="tab" aria-controls="prefs-appearance" aria-selected="false" tabindex="-1"><svg class="icon" aria-hidden="true"><use href="/icons.svg#monitor"/></svg>外观</button>
+          <button id="tab-tools" type="button" role="tab" aria-controls="prefs-tools" aria-selected="false" tabindex="-1"><svg class="icon" aria-hidden="true"><use href="/icons.svg#layers"/></svg>组件</button>
+          <button id="tab-storage" type="button" role="tab" aria-controls="prefs-storage" aria-selected="false" tabindex="-1"><svg class="icon" aria-hidden="true"><use href="/icons.svg#folder"/></svg>存储</button>
+        </div>
+        <div class="preference-sheet">
+          <div class="preference-content" id="preference-content" inert>
+            <p id="settings-error" class="preference-error error-text" role="alert" hidden></p>
+            <section class="settings-card" id="prefs-download" role="tabpanel" aria-labelledby="tab-download">
+              <div class="settings-section-heading">
+                <h2>下载偏好</h2>
+                <p class="help">应用于新加入队列的任务。</p>
+              </div>
+              <div class="setting">
+                <div class="setting-label"><label for="out-dir">默认保存位置</label><p id="dir-help">下载完成的文件会保存在此文件夹。</p></div>
+                <div class="directory-field">
+                  <input type="text" id="out-dir" aria-describedby="dir-help" placeholder="文件夹绝对路径" required spellcheck="false" autocapitalize="off">
+                  <button id="browse-folder" type="button" class="secondary" hidden>浏览…</button>
+                </div>
+              </div>
+              <div class="setting">
+                <div class="setting-label"><label for="output-format">默认输出格式</label><p id="format-help">MKV 优先保留源编码，M4A 和 MP3 仅保存音频。</p></div>
+                <select id="output-format" aria-describedby="format-help">
+                  <option value="mp4">MP4 视频</option>
+                  <option value="mkv">MKV 视频</option>
+                  <option value="m4a">M4A 音频</option>
+                  <option value="mp3">MP3 音频</option>
+                </select>
+              </div>
+              <div class="setting">
+                <div class="setting-label"><label for="resolution">分辨率上限</label><p id="resolution-help">按画面短边计算，可在添加任务时单独指定。</p></div>
+                <select id="resolution" aria-describedby="resolution-help">
+                  <option value="0">最佳可用画质</option>
+                  <option value="2160">2160p · 4K</option>
+                  <option value="1440">1440p · 2K</option>
+                  <option value="1080">1080p · 全高清</option>
+                  <option value="720">720p · 高清</option>
+                  <option value="480">480p · 标清</option>
+                </select>
+              </div>
+              <div class="setting">
+                <div class="setting-label"><label for="concurrency">同时下载的任务数</label><p id="concurrency-help">支持 1–6 个。调低后，已开始的任务会继续完成。</p></div>
+                <span class="unit-control"><input type="number" id="concurrency" aria-describedby="concurrency-help" min="1" max="6" step="1" required><span aria-hidden="true">个</span></span>
+              </div>
+              <div class="setting">
+                <div class="setting-label"><label for="compatible">MP4 兼容模式</label><p id="compatible-help">使用 H.264 视频与 AAC 音频，必要时重新编码。</p></div>
+                <input type="checkbox" role="switch" id="compatible" aria-describedby="compatible-help">
+              </div>
+            </section>
+            <section class="settings-card" id="prefs-network" role="tabpanel" aria-labelledby="tab-network" hidden>
+              <div class="settings-section-heading"><h2>网络与连接</h2></div>
+              <div class="setting">
+                <div class="setting-label"><label for="timeout">连接超时</label><p id="timeout-help">每次连接可等待 5–180 秒。</p></div>
+                <span class="unit-control"><input type="number" id="timeout" aria-describedby="timeout-help" min="5" max="180" step="1" required><span aria-hidden="true">秒</span></span>
+              </div>
+              <div class="setting">
+                <div class="setting-label"><label for="retries">下载失败重试</label><p id="retries-help">可重试 0–10 次，填 0 关闭自动重试。</p></div>
+                <span class="unit-control"><input type="number" id="retries" aria-describedby="retries-help" min="0" max="10" step="1" required><span aria-hidden="true">次</span></span>
+              </div>
+              <div class="setting">
+                <div class="setting-label"><label for="limit">下载限速</label><p id="limit-help">由 yt-dlp 执行。填 0 表示不限速。</p></div>
+                <span class="unit-control"><input type="number" id="limit" aria-describedby="limit-help" min="0" max="1048576" step="1" required><span aria-hidden="true">KiB/s</span></span>
+              </div>
+            </section>
+            <section class="settings-card" id="prefs-ai" role="tabpanel" aria-labelledby="tab-ai" hidden>
+              <div class="settings-section-heading">
+                <h2>AI 辅助下载</h2>
+                <p class="help">手动启动辅助下载时，模型会根据故障摘要、来源类型和下载选项选择重试方案。视频链接与完整日志保留在下载器中。</p>
+              </div>
+              <div class="setting">
+                <div class="setting-label"><label for="ai-protocol">API 协议</label></div>
+                <select id="ai-protocol">
+                  <option value="openai">OpenAI Chat Completions</option>
+                  <option value="openai-responses">OpenAI Responses</option>
+                  <option value="anthropic">Anthropic Messages</option>
+                </select>
+              </div>
+              <div class="setting">
+                <div class="setting-label"><label for="ai-base-url">API 基础地址</label><button id="use-official-ai" type="button" class="field-action">使用官方地址</button><p id="ai-url-help">本机 Ollama 可填 http://127.0.0.1:11434/v1。云服务使用 HTTPS。</p></div>
+                <input type="url" id="ai-base-url" aria-describedby="ai-url-help" placeholder="https://api.openai.com/v1" maxlength="2048" spellcheck="false" autocomplete="off" autocapitalize="off">
+              </div>
+              <div class="setting">
+                <div class="setting-label"><label for="ai-key">API 密钥<span class="field-optional">可选</span></label><p id="ai-key-help">仅在本次运行有效。重启或更换服务地址、协议后需重新填写。</p></div>
+                <input type="password" id="ai-key" aria-describedby="ai-key-help" placeholder="输入服务商密钥" maxlength="4096" spellcheck="false" autocomplete="off" autocapitalize="off">
+              </div>
+              <div class="setting">
+                <div class="setting-label"><label id="ai-model-label" for="ai-model">对话模型</label><p id="ai-model-help">获取列表后选择模型，也可手动输入模型 ID。</p></div>
+                <div class="ai-model-fields">
+                  <input type="text" id="ai-model" aria-describedby="ai-model-help" placeholder="输入模型 ID" maxlength="256" spellcheck="false" autocomplete="off" autocapitalize="off">
+                  <select id="ai-model-list" aria-label="可用模型" aria-describedby="ai-model-help" hidden></select>
+                  <button id="fetch-ai-models" class="secondary" type="button" aria-controls="ai-model-list" disabled>获取模型列表</button>
+                  <p id="ai-model-status" class="help" role="status"></p>
+                </div>
+              </div>
+            </section>
+            <section class="settings-card" id="prefs-appearance" role="tabpanel" aria-labelledby="tab-appearance" hidden>
+              <div class="settings-section-heading"><h2>界面外观</h2><p class="help">选择后可立即预览，保存后下次启动继续使用。</p></div>
+              <fieldset class="theme-setting" id="theme">
+                <legend>主题</legend>
+                <div class="theme-choices">
+                  <label class="theme-choice"><input type="radio" name="theme" value="system" checked><span class="theme-sample sample-system" aria-hidden="true"></span><span>跟随系统</span></label>
+                  <label class="theme-choice"><input type="radio" name="theme" value="light"><span class="theme-sample sample-light" aria-hidden="true"></span><span>浅色</span></label>
+                  <label class="theme-choice"><input type="radio" name="theme" value="dark"><span class="theme-sample sample-dark" aria-hidden="true"></span><span>深色</span></label>
+                </div>
+              </fieldset>
+              <div class="setting">
+                <div class="setting-label"><label for="glass">磨砂玻璃</label><p id="glass-help">为应用面板启用半透明背景。</p></div>
+                <input type="checkbox" role="switch" id="glass" aria-describedby="glass-help">
+              </div>
+            </section>
+            <section class="settings-card" id="prefs-tools" role="tabpanel" aria-labelledby="tab-tools" hidden>
+              <div class="settings-section-heading tools-header">
+                <div><h2>核心组件</h2><p class="help">首次下载会自动安装所需组件。</p></div>
+                <button id="update" class="secondary" type="button">检查并更新</button>
+              </div>
+              <ul class="tool-list" id="tools"></ul>
+              <p id="maintenance" class="maintenance" role="status" hidden></p>
+              <details id="maintenance-details" hidden><summary>组件更新日志</summary><pre id="maintenance-log" tabindex="0"></pre></details>
+            </section>
+            <section class="settings-card" id="prefs-storage" role="tabpanel" aria-labelledby="tab-storage" hidden>
+              <div class="settings-section-heading"><h2>存储与备份</h2></div>
+              <div class="setting">
+                <div class="setting-label"><strong>媒体缓存</strong><code class="path" id="cache-dir">正在读取位置…</code><p id="cache-size" role="status"></p></div>
+                <button id="clear-cache" type="button" class="secondary" disabled>清理缓存</button>
+              </div>
+              <div class="setting">
+                <div class="setting-label"><strong>应用数据</strong><p>查看本机保存的日志和程序数据。</p></div>
+                <div class="settings-actions">
+                  <button id="open-logs" type="button" class="secondary">打开日志目录</button>
+                  <button id="open-data" type="button" class="secondary">打开数据目录</button>
+                </div>
+              </div>
+              <div class="setting">
+                <div class="setting-label"><strong>配置备份</strong><p>导出已保存的配置。导入后点击「保存设置」应用。</p></div>
+                <div class="settings-actions">
+                  <button id="export-settings" type="button" class="secondary">导出配置</button>
+                  <button id="import-settings" type="button" class="secondary">导入配置</button>
+                  <input id="config-file" type="file" accept=".json,application/json" hidden>
+                </div>
+              </div>
+              <div class="setting">
+                <div class="setting-label"><strong>默认设置</strong><p>载入初始设置，可在保存前撤销。</p></div>
+                <button id="reset-settings" type="button" class="secondary">恢复默认</button>
+              </div>
+            </section>
+          </div>
+          <footer class="save-controls" aria-label="设置操作">
+            <span id="save-state" role="status"></span>
+            <button id="discard-settings" class="secondary" type="button" hidden>撤销更改</button>
+            <button id="save-settings" class="primary" type="button" disabled><span id="settings-save-label">保存设置</span><kbd id="settings-save-shortcut" aria-hidden="true"></kbd></button>
+          </footer>
+        </div>
+      </div>
+    </div>
+  </main>
+  <section id="account-gate" aria-labelledby="gate-title" role="main">
+    <div class="gate-card">
+      <div class="gate-brand"><img src="/app-icon.png" width="32" height="32" alt="">YT Downloader</div>
+      <h1 id="gate-title">正在连接工作台</h1>
+      <p id="gate-help" class="account-help">正在读取账户信息…</p>
+      <form id="gate-form" hidden>
+        <label class="account-field">用户名<input id="gate-username" name="username" autocomplete="username" maxlength="64" required></label>
+        <label class="account-field">密码<input id="gate-password" name="password" type="password" autocomplete="current-password" required></label>
+        <label class="account-field" id="gate-confirm-field" hidden>确认密码<input id="gate-confirm" type="password" autocomplete="new-password"></label>
+        <label class="account-field" id="gate-token-field" hidden>初始化令牌<input id="gate-token" name="setup-token" type="password" autocomplete="off" spellcheck="false" aria-describedby="gate-token-help"><span class="account-help" id="gate-token-help">使用 Web 服务首次启动时显示的令牌，或部署时指定的初始化令牌。</span></label>
+        <p id="gate-error" class="account-error" role="alert" hidden></p>
+        <button id="gate-submit" class="primary" type="submit">登录</button>
+      </form>
+      <button id="gate-retry" type="button" class="secondary" hidden>重新连接</button>
+    </div>
+  </section>
+  <dialog id="account-dialog" aria-labelledby="account-heading">
+    <div class="account-head"><h2 id="account-heading">账户与权限</h2><button class="icon-button" id="account-close" type="button" aria-label="关闭账户窗口">×</button></div>
+    <nav class="account-tabs" aria-label="账户功能">
+      <button type="button" data-account-tab="profile">我的账户</button>
+      <button type="button" data-account-tab="users" hidden>用户管理</button>
+      <button type="button" data-account-tab="roles" hidden>角色与权限</button>
+    </nav>
+    <div id="account-content"></div>
+    <p id="account-feedback" role="status" aria-live="polite" tabindex="-1" hidden></p>
+  </dialog>
+  <div id="toast" role="status" aria-live="polite" hidden></div>
+  <dialog id="log-dialog" aria-labelledby="log-title">
+    <div class="dialog-heading"><h2 id="log-title">任务日志</h2><button type="button" id="close-log" aria-label="关闭日志" class="icon-button">×</button></div>
+    <div id="log-url" class="log-url"></div>
+    <section id="log-diagnosis" class="log-diagnosis" hidden aria-label="任务失败原因">
+      <strong id="log-cause"></strong>
+      <p id="log-advice"></p>
+    </section>
+    <p id="log-ai-note" class="job-ai-note" hidden></p>
+    <pre id="log-content" tabindex="0"></pre>
+    <div class="dialog-actions"><button type="button" class="secondary" id="refresh-log">刷新</button><a id="save-log" class="primary" download="download.log">保存完整日志</a></div>
+  </dialog>
+  <dialog id="quit-dialog" aria-labelledby="quit-title">
+    <h2 id="quit-title">退出 YT Downloader？</h2>
+    <p class="help" id="quit-message"></p>
+    <div class="dialog-actions"><button id="keep-open" class="secondary" type="button" autofocus>返回</button><button id="confirm-quit" class="primary" type="button">退出应用</button></div>
+  </dialog>
+</body>
+</html>

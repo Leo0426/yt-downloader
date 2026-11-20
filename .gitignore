@@ -1,0 +1,8 @@
+/dist/
+/yt-downloader
+*.test
+.DS_Store
+
+/desktop/node_modules/
+/desktop/.dev/
+/.env
