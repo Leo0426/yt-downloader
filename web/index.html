@@ -16,13 +16,13 @@
 <body>
   <a class="skip-link" href="#main">跳到主要内容</a>
   <header class="app-bar">
-    <div class="brand"><img src="/app-icon.png" alt="" width="32" height="32"><span>YT Downloader</span></div>
+    <div class="brand"><span class="brand-mark"><svg class="icon" aria-hidden="true"><use href="/icons.svg#download"></use></svg></span><span>YT Downloader</span></div>
     <nav class="workspace-nav" aria-label="主导航">
       <div class="nav-group task-nav"><div class="nav-heading">下载队列</div>
         <div class="filters" aria-label="筛选任务" role="group">
           <button id="nav-queue" aria-current="page" type="button" class="nav-item filter active" data-filter="all" aria-pressed="true"><svg class="icon" aria-hidden="true"><use href="/icons.svg#list"></use></svg><span>全部任务</span><span class="nav-count" id="stat-total">0</span></button>
-          <button type="button" class="nav-item filter" data-filter="active" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="/icons.svg#activity"></use></svg><span>进行中</span><span class="nav-count" id="stat-active">0</span></button>
-          <button type="button" class="nav-item filter" data-filter="finished" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="/icons.svg#check"></use></svg><span>已完成</span><span class="nav-count" id="stat-done">0</span></button>
+          <button type="button" class="nav-item filter" data-filter="active" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="/icons.svg#activity"></use></svg><span>进行中</span></button>
+          <button type="button" class="nav-item filter" data-filter="finished" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="/icons.svg#check"></use></svg><span>已完成</span></button>
           <button type="button" class="nav-item filter" data-filter="failed" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="/icons.svg#alert"></use></svg><span>失败</span><span class="nav-count" id="stat-failed">0</span></button>
           <button hidden type="button" class="nav-item filter" data-filter="canceled" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="/icons.svg#cancel"></use></svg><span>已取消</span><span class="nav-count" id="stat-canceled">0</span></button>
         </div>
@@ -48,35 +48,48 @@
       <div id="queue-paused" class="queue-notice" role="status" hidden>队列已暂停。当前任务会继续下载，恢复后将启动等待中的任务。</div>
       <p id="access-empty" class="help" hidden>当前角色没有下载队列权限。你可以在「账户」中查看自己的角色和权限。</p>
       <section class="card composer" aria-labelledby="add-title">
-          <form id="add-form">
-            <div class="section-title">
-              <h2 id="add-title"><span class="section-symbol"><svg class="icon icon-link" aria-hidden="true"><use href="/icons.svg#link"></use></svg></span><label for="urls">添加下载</label></h2>
-              <button id="paste-links" type="button" class="quiet" hidden><svg class="icon icon-paste" aria-hidden="true"><use href="/icons.svg#paste"></use></svg>粘贴链接</button>
+        <form id="add-form">
+          <div class="composer-hero">
+            <img class="composer-art" src="/queue-deck.webp" width="600" height="400" alt="" draggable="false">
+            <div class="composer-field">
+              <div class="section-title">
+                <h2 id="add-title"><span class="section-symbol"><svg class="icon icon-link" aria-hidden="true"><use href="/icons.svg#link"></use></svg></span><label for="urls">添加下载</label></h2>
+                <button id="paste-links" type="button" class="quiet" hidden><svg class="icon icon-paste" aria-hidden="true"><use href="/icons.svg#paste"></use></svg>粘贴链接</button>
+              </div>
+              <div class="url-well">
+                <textarea id="urls" name="urls" aria-label="媒体链接" placeholder="粘贴或拖入视频、音频链接…" aria-describedby="composer-hint input-error" spellcheck="false" autocapitalize="off"></textarea>
+                <div class="input-foot"><span id="composer-hint">每行一个链接，可批量添加</span><span id="link-count" hidden></span></div>
+              </div>
+              <div id="input-error" class="error-text" role="alert" hidden></div>
             </div>
-            <div class="url-well">
-              <textarea id="urls" name="urls" aria-label="媒体链接" placeholder="粘贴或拖入视频、音频链接…" aria-describedby="composer-hint input-error" spellcheck="false" autocapitalize="off"></textarea>
-              <div class="input-foot"><span id="composer-hint">每行一个链接，可批量添加</span><span id="link-count" hidden></span></div>
+          </div>
+          <div class="composer-bottom">
+            <div class="destination">
+              <span id="destination-label">保存到</span>
+              <button id="edit-destination" type="button" aria-label="更改保存位置"><svg class="icon" aria-hidden="true"><use href="/icons.svg#folder"></use></svg><bdi id="folder-path"></bdi><span class="directory-change">更改</span></button>
             </div>
-            <div id="input-error" class="error-text" role="alert" hidden></div>
-            <div class="destination"><svg class="icon" aria-hidden="true"><use href="/icons.svg#folder"></use></svg><span id="destination-label">保存到</span><button id="edit-destination" type="button" aria-label="更改保存位置"><bdi id="folder-path"></bdi><span class="directory-change">更改</span></button></div>
-            <div class="composer-bottom">
-              <label class="batch-picker" for="batch-format">输出格式
-                <span class="select-wrap"><select id="batch-format">
-                  <option value="">MP4（默认）</option><option value="mp4">MP4</option><option value="mkv">MKV</option><option value="m4a">M4A 音频</option><option value="mp3">MP3 音频</option>
-                </select><svg class="icon icon-chevron" aria-hidden="true"><use href="/icons.svg#chevron"></use></svg></span>
-              </label>
-              <label class="batch-picker" for="batch-quality">画质上限
-                <span class="select-wrap"><select id="batch-quality">
-                  <option value="">默认画质</option><option value="0">最佳画质</option><option value="2160">最高 2160p</option><option value="1440">最高 1440p</option><option value="1080">最高 1080p</option><option value="720">最高 720p</option><option value="480">最高 480p</option>
-                </select><svg class="icon icon-chevron" aria-hidden="true"><use href="/icons.svg#chevron"></use></svg></span>
-              </label>
-              <button id="add" type="submit" class="primary" disabled><svg class="icon icon-plus" aria-hidden="true"><use href="/icons.svg#plus"></use></svg><span id="add-label">加入队列</span><kbd id="submit-shortcut"></kbd></button>
-            </div>
-          </form>
+            <label class="batch-picker" for="batch-format">输出格式
+              <span class="select-wrap"><select id="batch-format">
+                <option value="">MP4（默认）</option><option value="mp4">MP4</option><option value="mkv">MKV</option><option value="m4a">M4A 音频</option><option value="mp3">MP3 音频</option>
+              </select><svg class="icon icon-chevron" aria-hidden="true"><use href="/icons.svg#chevron"></use></svg></span>
+            </label>
+            <label class="batch-picker" for="batch-quality">画质上限
+              <span class="select-wrap"><select id="batch-quality">
+                <option value="">默认画质</option><option value="0">最佳画质</option><option value="2160">最高 2160p</option><option value="1440">最高 1440p</option><option value="1080">最高 1080p</option><option value="720">最高 720p</option><option value="480">最高 480p</option>
+              </select><svg class="icon icon-chevron" aria-hidden="true"><use href="/icons.svg#chevron"></use></svg></span>
+            </label>
+            <button id="add" type="submit" class="primary" disabled><svg class="icon icon-plus" aria-hidden="true"><use href="/icons.svg#plus"></use></svg><span id="add-label">加入队列</span><kbd id="submit-shortcut" aria-hidden="true"></kbd></button>
+          </div>
+        </form>
       </section>
+      <dl class="queue-metrics" aria-label="队列统计">
+        <div class="card metric metric-running"><dt><span class="metric-icon" aria-hidden="true"><svg class="icon"><use href="/icons.svg#activity"></use></svg></span>正在下载</dt><dd id="metric-running">—</dd></div>
+        <div class="card metric metric-waiting"><dt><span class="metric-icon" aria-hidden="true"><svg class="icon"><use href="/icons.svg#clock"></use></svg></span>等待中</dt><dd id="metric-waiting">—</dd></div>
+        <div class="card metric metric-finished"><dt><span class="metric-icon" aria-hidden="true"><svg class="icon"><use href="/icons.svg#check"></use></svg></span>已完成</dt><dd id="metric-done">—</dd></div>
+      </dl>
       <section class="card tasks" aria-labelledby="task-title">
         <div class="list-toolbar">
-          <h2 id="task-title"><span id="view-name">全部任务</span><span class="count" id="total-count">0</span></h2>
+          <h2 id="task-title" tabindex="-1"><span id="view-name">全部任务</span><span class="count" id="total-count">0</span></h2>
           <label class="search-box"><svg class="icon" aria-hidden="true"><use href="/icons.svg#search"></use></svg><input id="search-jobs" type="search" aria-label="搜索任务" placeholder="搜索标题或链接" spellcheck="false"></label>
         </div>
         <div class="list-columns" aria-hidden="true"><span>任务名称</span><span>输出</span><span>状态 / 进度</span><span>操作</span></div>
@@ -247,8 +260,9 @@
     </div>
   </main>
   <section id="account-gate" aria-labelledby="gate-title" role="main">
+    <div class="gate-art" aria-hidden="true"></div>
     <div class="gate-card">
-      <div class="gate-brand"><img src="/app-icon.png" width="32" height="32" alt="">YT Downloader</div>
+      <div class="gate-brand"><span class="brand-mark"><svg class="icon" aria-hidden="true"><use href="/icons.svg#download"></use></svg></span>YT Downloader</div>
       <h1 id="gate-title">正在连接工作台</h1>
       <p id="gate-help" class="account-help">正在读取账户信息…</p>
       <form id="gate-form" hidden>
@@ -288,6 +302,17 @@
     <h2 id="quit-title">退出 YT Downloader？</h2>
     <p class="help" id="quit-message"></p>
     <div class="dialog-actions"><button id="keep-open" class="secondary" type="button" autofocus>返回</button><button id="confirm-quit" class="primary" type="button">退出应用</button></div>
+  </dialog>
+  <dialog id="delete-dialog" aria-labelledby="delete-title" aria-describedby="delete-description">
+    <div class="dialog-warning" aria-hidden="true"><svg class="icon"><use href="/icons.svg#trash"></use></svg></div>
+    <h2 id="delete-title">删除任务？</h2>
+    <p class="delete-job-name" id="delete-job-name"></p>
+    <p class="help" id="delete-description">任务将从队列移除，仍在进行的下载会停止。已保存的文件会保留。</p>
+    <p id="delete-error" class="error-text" role="alert" hidden></p>
+    <div class="dialog-actions">
+      <button id="keep-job" class="secondary" type="button" autofocus>保留任务</button>
+      <button id="confirm-delete" class="primary danger-button" type="button">删除任务</button>
+    </div>
   </dialog>
 </body>
 </html>

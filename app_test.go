@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"log"
 	"net/http"
@@ -116,6 +117,42 @@ func TestCacheClearKeepsOutputsAndHonorsQueue(t *testing.T) {
 	}
 	if _, err := os.Stat(file); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestDeleteJobPersistsOnlyAfterSuccessfulSave(t *testing.T) {
+	a := bareApp(t)
+	queuePath := filepath.Join(a.root, "queue.json")
+	output := filepath.Join(a.root, "saved.mp4")
+	if err := os.WriteFile(output, []byte("media"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	a.Jobs = []job{
+		{ID: "saved", Status: "done", Path: output},
+		{ID: "waiting", Status: "queued"},
+	}
+	if err := os.Mkdir(queuePath, 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := a.action(adminActor, "saved", "delete"); err == nil || len(a.Jobs) != 2 || a.Jobs[0].ID != "saved" {
+		t.Fatalf("failed save changed the queue: %#v, %v", a.Jobs, err)
+	}
+	if err := os.Remove(queuePath); err != nil {
+		t.Fatal(err)
+	}
+	if err := a.action(adminActor, "saved", "delete"); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := os.ReadFile(queuePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var stored state
+	if err := json.Unmarshal(raw, &stored); err != nil || len(stored.Jobs) != 1 || stored.Jobs[0].ID != "waiting" {
+		t.Fatalf("wrong persisted queue: %s, %v", raw, err)
+	}
+	if media, err := os.ReadFile(output); err != nil || string(media) != "media" {
+		t.Fatalf("deletion changed the saved media: %q, %v", media, err)
 	}
 }
 

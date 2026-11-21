@@ -13,7 +13,7 @@ let nativeProgress = '';
 let pendingSubmission = false;
 let shuttingDown = false;
 let loaded = false;
-let refreshing = false;
+let refreshing;
 let shownLog = '';
 let logRequest = 0;
 let toastTimer;
@@ -82,6 +82,7 @@ function configureWorkspace() {
   const settings = hasPermission('settings.manage');
   document.querySelector('.task-nav').hidden = !view;
   document.querySelector('.composer').hidden = !create;
+  document.querySelector('.queue-metrics').hidden = !view;
   document.querySelector('.tasks').hidden = !view;
   byId('access-empty').hidden = view || create;
   byId('pause-queue').hidden = !hasPermission('queue.manage');
@@ -256,6 +257,7 @@ function makeJobRow(job) {
   if (control && (job.status === 'failed' || job.status === 'canceled')) actions.append(action('retry', '重试', job.status === 'failed' ? 'undo' : ''));
   if (control && active.has(job.status)) actions.append(action('cancel', '取消'));
   if (hasPermission('jobs.logs')) actions.append(action('log', job.status === 'failed' ? '原因与日志' : '日志', 'log'));
+  if (control) actions.append(action('delete', '删除任务', 'trash'));
   row.append(main, output, status, actions);
   return row;
 }
@@ -337,7 +339,7 @@ function renderJobs() {
     const signature = 'empty-' + selectedFilter + '/' + !!searchTerm;
     if (list.dataset.empty !== signature) list.replaceChildren(emptyMessage());
     list.dataset.empty = signature;
-    if (focusId) document.querySelector('.nav-item.active')?.focus({preventScroll: true});
+    if (focusId) byId('task-title').focus();
     return;
   }
   if (list.querySelector('.empty')) list.replaceChildren();
@@ -355,7 +357,7 @@ function renderJobs() {
   });
   if (focusId && focusAction && !focus.isConnected) {
     const row = jobRows.get(focusId)?.row;
-    const replacement = row?.querySelector(`[data-action="${focusAction}"]`) || row?.querySelector('button') || document.querySelector('.nav-item.active');
+    const replacement = row?.querySelector(`[data-action="${focusAction}"]`) || row?.querySelector('button') || byId('task-title');
     replacement.focus({preventScroll: true});
   }
 }
@@ -366,8 +368,9 @@ function renderOverview() {
     if (finished.has(job.status)) counts.done++;
     else if (Object.hasOwn(counts, job.status)) counts[job.status]++;
   }
-  byId('stat-active').textContent = counts.running + counts.queued;
-  byId('stat-done').textContent = counts.done;
+  byId('metric-running').textContent = counts.running;
+  byId('metric-waiting').textContent = counts.queued;
+  byId('metric-done').textContent = counts.done;
   byId('stat-failed').textContent = counts.failed;
   byId('stat-total').textContent = state.jobs.length;
   byId('stat-canceled').textContent = counts.canceled;
@@ -436,9 +439,14 @@ function renderTools() {
   if (byId('maintenance-log').textContent !== (state.maintenanceLog || '')) byId('maintenance-log').textContent = state.maintenanceLog || '';
 }
 
-async function refresh() {
-  if (refreshing || shuttingDown) return;
-  refreshing = true;
+function refresh() {
+  if (!refreshing && !shuttingDown) {
+    refreshing = readState().finally(() => { refreshing = undefined; });
+  }
+  return refreshing;
+}
+
+async function readState() {
   try {
     const response = await request('/api/state');
     const latest = await response.json();
@@ -474,8 +482,6 @@ async function refresh() {
     setConnection('连接中断', false);
     if (!state.preferences) byId('jobs').querySelector('.empty-title').textContent = '等待连接下载服务';
     display('connection-error', `暂时无法连接下载服务，将自动重试。${error.message}`);
-  } finally {
-    refreshing = false;
   }
 }
 
@@ -585,6 +591,10 @@ async function readLog() {
   }
 }
 
+const deleteDialog = byId('delete-dialog');
+const confirmDelete = byId('confirm-delete');
+const keepJob = byId('keep-job');
+
 byId('jobs').addEventListener('click', async event => {
   const button = event.target.closest('button[data-action]');
   if (!button) return;
@@ -592,6 +602,13 @@ byId('jobs').addEventListener('click', async event => {
   const name = button.dataset.action;
   const job = state.jobs.find(item => item.id === id);
   if (!job) return;
+  if (name === 'delete') {
+    deleteDialog.dataset.jobId = id;
+    byId('delete-job-name').textContent = button.closest('.job-row').querySelector('.job-title').textContent;
+    display('delete-error', '');
+    deleteDialog.showModal();
+    return;
+  }
   if (name === 'log') {
     shownLog = id;
     byId('log-url').textContent = job.url;
@@ -633,6 +650,38 @@ byId('jobs').addEventListener('click', async event => {
     notify(error.message);
   } finally {
     button.disabled = false;
+  }
+});
+
+keepJob.addEventListener('click', () => deleteDialog.close());
+deleteDialog.addEventListener('cancel', event => {
+  if (confirmDelete.disabled) event.preventDefault();
+});
+deleteDialog.addEventListener('close', () => {
+  const row = jobRows.get(deleteDialog.dataset.jobId)?.row;
+  const target = row?.querySelector('[data-action="delete"]') || byId('task-title');
+  target.focus();
+});
+confirmDelete.addEventListener('click', async () => {
+  const id = deleteDialog.dataset.jobId;
+  confirmDelete.disabled = keepJob.disabled = true;
+  confirmDelete.textContent = '正在删除…';
+  display('delete-error', '');
+  try {
+    await request('/api/delete', {id});
+    // Let any snapshot issued before the deletion finish before removing the row.
+    await refreshing;
+    state.jobs = state.jobs.filter(job => job.id !== id);
+    renderOverview();
+    renderJobs();
+    deleteDialog.close();
+    notify('已删除任务。');
+    refresh();
+  } catch (error) {
+    display('delete-error', error.message);
+  } finally {
+    confirmDelete.disabled = keepJob.disabled = false;
+    confirmDelete.textContent = '删除任务';
   }
 });
 
@@ -678,9 +727,7 @@ function renderPause() {
   byId('pause-label').textContent = state.paused ? '恢复队列' : '暂停队列';
   button.setAttribute('aria-pressed', String(!!state.paused));
   byId('queue-paused').hidden = !state.paused;
-  const waiting = state.jobs.filter(job => job.status === 'queued').length;
-  const running = state.running || 0;
-  const activity = waiting || running ? `${running} 项下载中 · ${waiting} 项等待` : '队列空闲';
+  const activity = !state.paused && '队列就绪';
   const limit = state.preferences?.concurrency;
   display('queue-summary', loaded ? [activity, limit && '并发上限 ' + limit].filter(Boolean).join(' · ') : '等待连接下载服务');
 }

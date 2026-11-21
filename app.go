@@ -11,6 +11,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -318,12 +319,28 @@ func (j *job) visibleTo(actor identityPrincipal) bool {
 func (a *application) action(actor identityPrincipal, id, action string) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	j := a.find(id)
-	if j == nil || !j.visibleTo(actor) {
+	index := slices.IndexFunc(a.Jobs, func(j job) bool { return j.ID == id })
+	if index < 0 || !a.Jobs[index].visibleTo(actor) {
 		return os.ErrNotExist
 	}
+	j := &a.Jobs[index]
 	if !actor.Can("jobs.control") || (j.OwnerID != actor.ID && !actor.Can("jobs.controlAll")) {
 		return errAccessDenied
+	}
+	if action == "delete" {
+		previous := a.Jobs
+		a.Jobs = slices.Delete(slices.Clone(previous), index, index+1)
+		if err := a.save(); err != nil {
+			a.Jobs = previous
+			a.logger.Printf("保存任务删除失败: %v", err)
+			return errors.New("无法保存队列，请检查数据目录后重试")
+		}
+		// The worker still occupies its slot until it finishes shutting down.
+		if cancel := a.active[id]; cancel != nil {
+			cancel()
+		}
+		a.notify()
+		return nil
 	}
 	if action == "ai-retry" && !actor.Can("jobs.ai") {
 		return errAccessDenied
@@ -560,7 +577,13 @@ func (a *application) runJob(ctx context.Context, j job) {
 	var planErr error
 	if err == nil {
 		fmt.Fprintf(f, "\n[%s] %s\n保存至 %s\n", time.Now().Format(time.RFC3339), j.URL, j.OutDir)
-		progress := func(msg string) { a.mu.Lock(); a.find(j.ID).Message = msg; a.mu.Unlock() }
+		progress := func(msg string) {
+			a.mu.Lock()
+			defer a.mu.Unlock()
+			if current := a.find(j.ID); current != nil {
+				current.Message = msg
+			}
+		}
 		var hit bool
 		result, hit, err = a.engine.TryCached(ctx, j.URL, j.OutDir, f, progress, j.Options)
 		if !hit && err == nil && j.AIRetry != nil {
@@ -586,7 +609,9 @@ func (a *application) runJob(ctx context.Context, j job) {
 				result, err = a.engine.RunWithTitle(ctx, j.URL, j.OutDir, paths, f, progress, func(title string) {
 					a.mu.Lock()
 					defer a.mu.Unlock()
-					a.find(j.ID).Title = title
+					if current := a.find(j.ID); current != nil {
+						current.Title = title
+					}
 				}, j.Options)
 			}
 		}
@@ -608,7 +633,13 @@ func (a *application) runJob(ctx context.Context, j job) {
 		a.refreshTools()
 	}
 	a.mu.Lock()
+	defer a.notify()
+	defer a.mu.Unlock()
+	delete(a.active, j.ID)
 	current := a.find(j.ID)
+	if current == nil {
+		return
+	}
 	switch {
 	case err == nil:
 		current.Failure = nil
@@ -636,8 +667,5 @@ func (a *application) runJob(ctx context.Context, j job) {
 	if current.Status != "queued" {
 		current.AIRetry = nil
 	}
-	delete(a.active, j.ID)
 	a.checkpoint()
-	a.mu.Unlock()
-	a.notify()
 }

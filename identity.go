@@ -29,7 +29,7 @@ var permissionCatalog = []permissionDefinition{
 	{"jobs.view", "查看自己的下载任务"},
 	{"jobs.viewAll", "查看所有用户的任务"},
 	{"jobs.create", "新建下载和提交嗅探资源"},
-	{"jobs.control", "取消或重试自己的任务"},
+	{"jobs.control", "取消、重试或删除自己的任务"},
 	{"jobs.controlAll", "管理其他用户的任务"},
 	{"jobs.logs", "查看任务日志"},
 	{"jobs.files", "打开下载文件或所在目录"},

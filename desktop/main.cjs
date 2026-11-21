@@ -103,7 +103,7 @@ function registerDesktopFeatures() {
     nativeTheme.themeSource = theme;
     if (process.platform === 'darwin') {
       window.setVibrancy(glass ? 'under-window' : null);
-      window.setBackgroundColor(glass ? '#00000000' : nativeTheme.shouldUseDarkColors ? '#141c28' : '#f3f5f8');
+      window.setBackgroundColor(glass ? '#00000000' : nativeTheme.shouldUseDarkColors ? '#171719' : '#f4f2ef');
     }
   });
   nativeHandler('app:paste', () => clipboard.readText(), 'jobs.create');
@@ -122,7 +122,7 @@ function createWindow() {
     height: 800,
     minWidth: 640,
     minHeight: 520,
-    backgroundColor: nativeTheme.shouldUseDarkColors ? '#141c28' : '#f3f5f8',
+    backgroundColor: nativeTheme.shouldUseDarkColors ? '#171719' : '#f4f2ef',
     show: false,
     icon,
     webPreferences: {

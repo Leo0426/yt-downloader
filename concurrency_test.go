@@ -71,10 +71,14 @@ func TestQueueConcurrencyAndLiveLimit(t *testing.T) {
 	if jobs[0].Status != "canceled" || jobs[1].Status != "running" || jobs[2].Status != "queued" {
 		t.Fatalf("lowering the limit should preserve the remaining worker: %#v", jobs)
 	}
-	if err := a.action(adminActor, jobs[1].ID, "cancel"); err != nil {
+	if err := a.action(adminActor, jobs[1].ID, "delete"); err != nil {
 		t.Fatal(err)
 	}
 	if third := waitStart(); third != "/third.mp4" {
 		t.Fatalf("expected next queued task, got %s", third)
+	}
+	remaining := a.snapshot(adminActor)["jobs"].([]job)
+	if len(remaining) != 2 || remaining[0].ID != jobs[0].ID || remaining[1].ID != jobs[2].ID {
+		t.Fatalf("worker recreated its deleted queue entry: %#v", remaining)
 	}
 }

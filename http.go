@@ -27,6 +27,7 @@ var businessPermissions = map[string]string{
 	"POST /api/jobs":            "jobs.create",
 	"POST /api/retry":           "jobs.control",
 	"POST /api/cancel":          "jobs.control",
+	"POST /api/delete":          "jobs.control",
 	"POST /api/ai-retry":        "jobs.ai",
 	"POST /api/open":            "jobs.files",
 	"POST /api/reveal":          "jobs.files",
@@ -241,7 +242,7 @@ func siteRoutes(a *application, site httpSite, token string, assets http.FileSys
 				json.NewEncoder(w).Encode(map[string]int{"added": added, "skipped": skipped})
 				return
 			}
-		case "/api/retry", "/api/ai-retry", "/api/cancel":
+		case "/api/retry", "/api/ai-retry", "/api/cancel", "/api/delete":
 			err = a.action(actor, input.ID, strings.TrimPrefix(r.URL.Path, "/api/"))
 		case "/api/cache/clear":
 			err = a.clearCache()

@@ -136,7 +136,7 @@ func TestAccountsUseSeparateQueuesAndProtectBusinessRoutes(t *testing.T) {
 	}
 	for _, j := range []job{a.Jobs[0], a.Jobs[1]} {
 		check("GET", "/api/log?id="+j.ID, "", operator, 404)
-		for _, action := range []string{"retry", "ai-retry", "cancel", "reveal", "open"} {
+		for _, action := range []string{"retry", "ai-retry", "cancel", "delete", "reveal", "open"} {
 			check("POST", "/api/"+action, `{"id":"`+j.ID+`"}`, operator, 404)
 		}
 	}
@@ -174,6 +174,13 @@ func TestAccountsUseSeparateQueuesAndProtectBusinessRoutes(t *testing.T) {
 	if response.Code != 401 || len(a.Jobs) != 3 {
 		t.Fatal("stale tab submitted as another principal")
 	}
+	owned := a.Jobs[2].ID
+	check("POST", "/api/delete", `{"id":"`+owned+`"}`, operator, 200)
+	check("GET", "/api/log?id="+owned, "", operator, 404)
+	check("POST", "/api/delete", `{"id":"legacy"}`, admin, 200)
+	if len(a.Jobs) != 1 || a.Jobs[0].OwnerID == result.Session.User.ID {
+		t.Fatalf("unexpected queue after deletion: %#v", a.Jobs)
+	}
 }
 
 func TestTaskScopesRequireTheirBaseCapabilities(t *testing.T) {
@@ -182,6 +189,9 @@ func TestTaskScopesRequireTheirBaseCapabilities(t *testing.T) {
 	readAll := identityPrincipal{ID: "alice", Permissions: []string{"jobs.view", "jobs.viewAll", "jobs.control"}}
 	if err := a.action(readAll, "other", "cancel"); err != errAccessDenied {
 		t.Fatalf("view all allowed controlling other account: %v", err)
+	}
+	if err := a.action(readAll, "other", "delete"); err != errAccessDenied {
+		t.Fatalf("view all allowed deleting another account's job: %v", err)
 	}
 	j := a.snapshot(readAll)["jobs"].([]job)[0]
 	if j.Path != "" || j.Log != "" || j.OutDir != "" {
